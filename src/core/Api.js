@@ -1,5 +1,3 @@
-import { getUrl } from "./config.js";
-
 export async function request(
   endpoint,
   method = "GET",
@@ -7,27 +5,31 @@ export async function request(
   isJson = true,
   headers = {}
 ) {
+  headers = { ...headers };
+
   if (body && isJson) {
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(body);
   }
 
   try {
-    const response = await fetch(getUrl(endpoint), {
+    const response = await fetch(endpoint, {
       method,
       headers,
       body
     });
 
     const contentType = response.headers.get("content-type");
-
     let data = null;
-    if (contentType?.includes("application/json")) {
-      data = await response.json();
-    } else if (contentType?.includes("text/")) {
-      data = await response.text();
-    } else if (contentType?.includes("application/octet-stream")) {
-      data = await response.blob();
+
+    if (response.status !== 204) {
+      if (contentType?.includes("application/json")) {
+        data = await response.json();
+      } else if (contentType?.includes("text/")) {
+        data = await response.text();
+      } else if (contentType?.includes("application/octet-stream")) {
+        data = await response.blob();
+      }
     }
 
     return {
@@ -39,20 +41,11 @@ export async function request(
     };
   } catch (err) {
     return {
-      code: 500,
       ok: false,
+      code: 500,
       data: null,
       error: err.message || "Unknown error"
     };
   }
 }
 
-export async function fetchAppConfig(appID) {
-  const res = await request(`/api/app/config?app_id=${appID}`);
-
-  if (res.error) {
-    throw Error(res.error);
-  }
-
-  return res.data;
-}

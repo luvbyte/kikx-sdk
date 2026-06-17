@@ -1,8 +1,8 @@
-import Service from "../Service.js";
+import Service from "./Service.js"
 
 export default class FileSystemService extends Service {
-  constructor() {
-    super("fs");
+  constructor(app) {
+    super(app, "fs");
   }
 
   listFiles = (directory = "") =>
@@ -29,5 +29,4 @@ export default class FileSystemService extends Service {
     this.request("copy", "POST", { source, destination });
   move = (source, destination) =>
     this.request("move", "POST", { source, destination });
-  serve = file => this.request(`serve?filename=${encodeURIComponent(file)}`);
 }

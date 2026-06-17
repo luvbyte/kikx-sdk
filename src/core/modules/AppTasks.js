@@ -119,13 +119,4 @@ export default class AppTasks {
       }
     });
   }
-
-  async quickTask(name, ...input) {
-    return await this.runFunc("tasks.run_once", {
-      args: [name],
-      options: {
-        task_input: input.join("\n")
-      }
-    });
-  }
 }

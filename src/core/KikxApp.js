@@ -1,107 +1,104 @@
-import { getAppID } from "../utils/app.js";
-import { fetchAppConfig } from "./api.js";
-
+import { request } from "./Api.js";
 import Handler from "./Handler.js";
+import SystemService from "./SystemService.js";
 
-import SystemService from "./services/SystemService.js";
+import KikxConfig from "./Config.js";
 
-import { getWsUrl } from "./config.js";
+// Singleton state
+let instance = null;
+let instanceType = null;
 
+// Base App
 export class KikxApp {
-  constructor() {
-    this.id = getAppID();
-
-    // Warn if system services not enabled
-    this.system = new SystemService();
-
-    // config
-    this.config = null;
+  constructor(config = null) {
+    this.config = config || new KikxConfig();
+    this.system = new SystemService(this);
   }
-  async run(callback = null) {
-    this.config = await fetchAppConfig(this.id);
 
-    if (callback && typeof callback === "function") {
-      await callback();
+  async run(callback = null) {
+    this.appInfo = await this.fetchAppInfo();
+
+    if (typeof callback === "function") {
+      await callback(this.appInfo);
     }
   }
+
+  getAppID = () => {
+    return this.config.getAppID();
+  };
+
+  getUrl = end => {
+    return this.config.getUrl(end);
+  };
+
+  getWsUrl = () => {
+    return this.config.getWsUrl();
+  };
+
+  fetchAppInfo() {
+    return this.system.appInfo();
+  }
+
   func(name, options) {
     return this.system.appFunc(name, options);
   }
 }
 
+// Client App
 export class KikxAppClient extends KikxApp {
-  constructor() {
-    super();
+  constructor(config = null) {
+    super(config);
 
     this.appEventHandlers = new Map();
-
     this.ws = null;
     this.eventCallbacks = {};
 
-    this.reconnectDelay = 1000; // ms
+    this.reconnectDelay = 1000;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 13;
     this._reconnectTimer = null;
-
-    // Signals
-    this.on("signal", signal => {
-      //
-    });
-
-    // Event: App-specific handler
-    this.on("handler-data", payload => {
-      this.appEventHandlers
-        .get(payload.id)
-        ?._ondata_callbacks.forEach(fn => fn(payload.data));
-    });
 
     this.on("reconnected", () => {
       this.reconnectAttempts = 0;
     });
 
-    // Handle tab focus in browsers
-    document.addEventListener("visibilitychange", () => {
-      if (this.ws && document.visibilityState === "visible") {
-        try {
-          this.send({ event: "app:focus", payload: { app_id: this.id } });
-        } catch (_) {}
-      }
-    });
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", () => {
+        if (this.ws && document.visibilityState === "visible") {
+          try {
+            this.send({
+              event: "app:focus",
+              payload: { app_id: this.getAppID() }
+            });
+          } catch (_) {}
+        }
+      });
+    }
   }
 
   createHandler() {
     const handler = new Handler();
-
-    console.log("Handler created: ", handler.handlerID);
-
     this.appEventHandlers.set(handler.handlerID, handler);
     return handler;
   }
 
   removeHandler(handlerID) {
     this.appEventHandlers.delete(handlerID);
-    console.log("Handler Removed: ", handlerID);
   }
 
   _forceReconnect(reason = "manual trigger") {
-    console.log(reason + " → forcing reconnect...");
     this._clearReconnectTimer();
-    this.reconnectAttempts = 0; // reset attempts on resume
+    this.reconnectAttempts = 0;
     this._connect();
   }
 
   _connect() {
     if (this.ws) return;
 
-    //  const protocol = location.protocol === "https:" ? "wss" : "ws";
-    const url = `${getWsUrl()}/app/${this.id}`;
-    // const url = `${protocol}://${location.host}/app/${this.id}`;
-    console.log("Connecting to WebSocket:", url);
-
+    const url = `${this.getWsUrl()}/app/${this.getAppID()}`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = e => {
-      console.log("WebSocket connection opened.");
       this._clearReconnectTimer();
       this._callEvent("ws:onopen", e);
     };
@@ -109,9 +106,11 @@ export class KikxAppClient extends KikxApp {
     this.ws.onmessage = e => {
       try {
         const message = JSON.parse(e.data);
+
         if (message.event === "connected") {
           this.config = message.payload.config;
         }
+
         if (message.event) {
           this._callEvent(message.event, message.payload);
         }
@@ -121,42 +120,29 @@ export class KikxAppClient extends KikxApp {
     };
 
     this.ws.onclose = e => {
-      console.warn("WebSocket connection closed.");
       this.ws = null;
       this._callEvent("ws:onclose", e);
       this._scheduleReconnect();
     };
 
     this.ws.onerror = e => {
-      console.error("WebSocket error:", e);
       this._callEvent("ws:onerror", e);
       if (this.ws) {
-        this.ws.close(); // Will trigger onclose
+        this.ws.close();
         this.ws = null;
       }
     };
   }
 
   _scheduleReconnect() {
-    console.log("Scheduling reconnect... Attempt:", this.reconnectAttempts);
-
-    if (this._reconnectTimer) {
-      console.log("Reconnect timer already set. Skipping.");
-      return;
-    }
+    if (this._reconnectTimer) return;
 
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.warn(
-        `Max reconnect attempts (${this.maxReconnectAttempts}) reached.`
-      );
       this._callEvent("ws:reconnect_failed");
       return;
     }
 
     this.reconnectAttempts += 1;
-    console.log(
-      `Reconnect attempt ${this.reconnectAttempts} in ${this.reconnectDelay}ms...`
-    );
 
     this._reconnectTimer = setTimeout(() => {
       this._reconnectTimer = null;
@@ -172,21 +158,18 @@ export class KikxAppClient extends KikxApp {
   }
 
   on(event, callback) {
-    this.addEvent(event, callback);
-  }
-
-  off(event, callback) {
-    if (!this.eventCallbacks[event]) return;
-    this.eventCallbacks[event] = this.eventCallbacks[event].filter(
-      fn => fn !== callback
-    );
-  }
-
-  addEvent(event, callback) {
     if (!this.eventCallbacks[event]) {
       this.eventCallbacks[event] = [];
     }
     this.eventCallbacks[event].push(callback);
+  }
+
+  off(event, callback) {
+    if (!this.eventCallbacks[event]) return;
+
+    this.eventCallbacks[event] = this.eventCallbacks[event].filter(
+      fn => fn !== callback
+    );
   }
 
   _callEvent(event, data = null) {
@@ -195,19 +178,63 @@ export class KikxAppClient extends KikxApp {
     }
   }
 
-  send = data => {
+  send(data) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
-    } else {
-      console.warn("Cannot send message. WebSocket not open.");
     }
-  };
+  }
 
   async run(callback = null) {
     if (this.ws && this.ws.readyState < WebSocket.CLOSING) return;
+
     if (typeof callback === "function") {
       this.on("connected", callback);
     }
+
     this._connect();
   }
+}
+
+// Create Base App
+export function createKikxApp(config = null) {
+  if (instance) {
+    if (instanceType !== "base") {
+      throw new Error(
+        `KikxApp already created as '${instanceType}', cannot create 'base'.`
+      );
+    }
+    return instance;
+  }
+
+  instanceType = "base";
+  instance = new KikxApp(config);
+
+  return instance;
+}
+
+// Create Client App
+export function createKikxClient(config = null) {
+  if (instance) {
+    if (instanceType !== "client") {
+      throw new Error(
+        `KikxApp already created as '${instanceType}', cannot create 'client'.`
+      );
+    }
+    return instance;
+  }
+
+  instanceType = "client";
+  instance = new KikxAppClient(config);
+
+  return instance;
+}
+
+// Get Existing Instance
+export function getKikxApp() {
+  if (!instance) {
+    throw new Error(
+      "KikxApp not created. Call createKikxApp() or createKikxClient() first."
+    );
+  }
+  return instance;
 }
