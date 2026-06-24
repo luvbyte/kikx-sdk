@@ -1,11 +1,11 @@
 class AppTask {
-  constructor(name, handler, func, once = true) {
-    this.name = name;
-    this.handler = handler;
+  constructor(cmd, handler, func, once = true) {
+    this.cmd = cmd;
     this.func = func;
+    this.handler = handler;
 
-    this.task_result = null;
     this.running = false;
+    this.task_result = null;
 
     this.once = once;
     this.completed = false;
@@ -18,11 +18,11 @@ class AppTask {
     });
   }
 
-  async __run(args = "") {
+  async __run() {
     if (this.once && this.completed) throw Error("Task already completed");
 
     this.task_result = await this.func("tasks.run_task", {
-      args: [`${this.name} ${args}`.trim()],
+      args: [`${this.cmd}`.trim()],
       options: { handler_id: this.handler.handlerID }
     });
 
@@ -33,10 +33,18 @@ class AppTask {
     return this.task_result;
   }
 
-  run(args) {
+  async run() {
     if (this.running) return;
+
     this.running = true;
-    return this.__run(args);
+
+    try {
+      return await this.__run();
+    } finally {
+      if (!this.once) {
+        this.running = false;
+      }
+    }
   }
 
   async send(input) {
@@ -71,7 +79,7 @@ export default class AppTasks {
     return this.app.func(name, options);
   };
 
-  createTask(name, once = true) {
+  createTask(cmd, once = true) {
     if (!this.app.func) {
       throw Error("KikxAppClient is required as app to create task");
     }
@@ -84,23 +92,23 @@ export default class AppTasks {
       };
     }
 
-    return new AppTask(name, handler, this.runFunc, once);
+    return new AppTask(cmd, handler, this.runFunc, once);
   }
 
-  async runTask(name, callback) {
-    const task = this.createTask(name);
+  async runTask(cmd, callback) {
+    const task = this.createTask(cmd);
     task.on(callback);
 
     return await task.__run();
   }
 
-  async runTaskSync(name) {
+  async runTaskSync(cmd) {
     const fullData = [];
     let flag = false;
 
     return new Promise((resolve, reject) => {
       try {
-        this.runTask(name, data => {
+        this.runTask(cmd, data => {
           if (data.status === "started") {
             flag = true;
           } else if (data.status === "ended") {

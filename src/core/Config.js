@@ -1,13 +1,14 @@
 class KikxConfig {
-  constructor() {
-    this.customApiUrl = null;
-    this.customWsUrl = null;
-    this.customAppID = window.location.pathname.split("/")[2] || null;
-  }
+  constructor(config = {}) {
+    const { apiUrl, wsUrl, appID } = config || {};
 
-  getAppID() {
-    return this.customAppID;
+    this.customApiUrl = apiUrl;
+    this.customWsUrl = wsUrl;
+    this.customAppID = appID || window.location.pathname.split("/")[2] || null;
   }
+  
+  getAppID = () => this.customAppID
+  
 
   configureUrls(options = {}) {
     const { apiUrl, wsUrl, appID } = options;

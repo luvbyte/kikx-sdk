@@ -10,6 +10,6 @@ export { default as OSService } from "./core/services/OSService.js";
 export { default as KikxConfig } from "./core/Config.js";
 
 export { createKikxApp as createApp } from "./core/KikxApp.js";
-export { createKikxClient as createClient } from "./core/KikxApp.js";
+export { createKikxClient as createClientApp } from "./core/KikxApp.js";
 
 export { getKikxApp } from "./core/KikxApp.js";
