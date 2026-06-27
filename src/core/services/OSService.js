@@ -6,5 +6,5 @@ export default class OSService extends Service {
   }
   // Run function in os service
   func = (name, { args = [], options = {} }) =>
-    this.fetch("run", "POST", { name, args, options });
+    this.request("run", "POST", { name, args, options });
 }

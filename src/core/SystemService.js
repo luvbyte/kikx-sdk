@@ -22,5 +22,5 @@ export default class SystemService extends Service {
   closeApp = () => this.fetch("close-app", "POST");
   // Invoke an action
   invoke = (action, payload = {}) =>
-    this.fetch("invoke", "POST", { action, payload });
+    this.request("invoke", "POST", { action, payload });
 }

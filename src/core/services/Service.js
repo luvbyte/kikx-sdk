@@ -25,7 +25,7 @@ export default class Service {
     const res = await this.request(endpoint, method, body, isJson);
 
     if (!res.ok) {
-      throw Error(res.error);
+      throw new Error(res.error?.detail || "Unknown Error");
     }
 
     return res.data;
