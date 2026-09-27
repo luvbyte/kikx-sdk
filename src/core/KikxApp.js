@@ -16,6 +16,8 @@ export class KikxApp {
 
     // App full info
     this.info = null;
+    // Is App visible in ui
+    this.isVisisble = true;
 
     // Events and Messages Handlers
     this._appEvents = new EventEmitter();
@@ -25,6 +27,12 @@ export class KikxApp {
     window.addEventListener("message", ({ data }) => {
       const { event, payload } = data ?? {};
       if (!event) return;
+
+      if (event === "app:focus") {
+        this.isVisisble = true;
+      } else if (event === "app:blur") {
+        this.isVisisble = false;
+      }
 
       this._messageEvents.emit(event, payload);
     });
@@ -53,6 +61,14 @@ export class KikxApp {
 
   onceMessage(event, callback) {
     return this._messageEvents.once(event, callback);
+  }
+
+  onFocus(callback) {
+    return this.onMessage("app:focus", callback);
+  }
+
+  onBlur(callback) {
+    return this.onMessage("app:blur", callback);
   }
 
   // ---------------------- App Events

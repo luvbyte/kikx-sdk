@@ -475,7 +475,7 @@ export default class Tasker extends Service {
           // never break task lifecycle.
         }
 
-        if (status === "ended" || status === "error") {
+        if (status === "ended") {
           void this.removeTask(task);
         }
       });
