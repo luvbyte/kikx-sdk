@@ -14,8 +14,10 @@ export class KikxApp {
     this.config = new KikxConfig(config);
     this.system = new SystemService(this);
 
-    // App full info
+    // App, kikx full info
     this.info = null;
+    this.kikx = null;
+
     // Is App visible in ui
     this.isVisisble = true;
 
@@ -39,6 +41,8 @@ export class KikxApp {
   }
 
   // ---------------------- App
+
+  isSudo = () => this.info.options.sudo;
 
   // Get appID
   getAppID = () => this.config.getAppID();
@@ -88,17 +92,18 @@ export class KikxApp {
   // ---------------------- Start
 
   async _run() {
-    const { data, error } = await this.system.appInfo();
+    const { data, error } = await this.system.kikxAppInfo();
 
     if (error) {
       throw new Error(
-        "Error fetching app info: " + (error.detail || error.message)
+        "Error fetching kikx-app info: " + (error.detail || error.message)
       );
     }
 
-    await this._appEvents.emit("start", data, false);
+    this.info = data.app;
+    this.kikx = data.kikx;
 
-    this.info = data;
+    await this._appEvents.emit("start", data, false);
   }
 
   async run(callback = null) {

@@ -7,10 +7,14 @@ export default class SystemService extends Service {
   }
 
   // ----------------------------------------
-  // App information
+  // Info
   // ----------------------------------------
 
+  kikxInfo = () => this.request("info/kikx");
+
   appInfo = () => this.request("info/app");
+
+  kikxAppInfo = () => this.request("info/kikx-app");
 
   getAppsList = (meta = false) =>
     this.request("info/apps-list", {

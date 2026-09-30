@@ -16,7 +16,7 @@ export default class ProxyService extends Service {
       ...options
     } = {}
   ) =>
-    this.request("", {
+    this.api("", {
       method,
       params: {
         __proxy_target: url,
