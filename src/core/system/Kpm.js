@@ -1,6 +1,7 @@
 class AppInstaller {
-  constructor(app) {
+  constructor(app, onInstalled = null) {
     this.app = app;
+    this.onInstalled = onInstalled;
 
     this.appData = null;
     this.isGithub = false;
@@ -44,7 +45,6 @@ class AppInstaller {
     return data;
   };
 
-  // from storage path
   storage = async path => {
     if (this.appData) {
       return this.appData;
@@ -121,6 +121,11 @@ class AppInstaller {
       throw new Error(error.detail || error.message);
     }
 
+    // Installation succeeded
+    if (this.onInstalled) {
+      this.onInstalled(this);
+    }
+
     return data;
   };
 }
@@ -151,7 +156,11 @@ export default class Kpm {
     }
 
     if (!this._installers.has(name)) {
-      this._installers.set(name, this.createInstaller());
+      const installer = new AppInstaller(this.app, () =>
+        this.removeInstaller(name)
+      );
+
+      this._installers.set(name, installer);
     }
 
     return this._installers.get(name);
@@ -219,3 +228,4 @@ export default class Kpm {
     return data;
   };
 }
+

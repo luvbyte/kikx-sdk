@@ -442,6 +442,13 @@ export default class FileSystemService extends Service {
       body: { path, expires }
     });
 
+  // Expose multiple paths for serving files
+  batchExpose = (paths, expires = null) =>
+    this.api("expose-batch", {
+      method: "POST",
+      body: { paths, expires }
+    });
+
   // Remove Expose
   removeExpose = uid =>
     this.api("expose", {
@@ -465,6 +472,10 @@ export default class FileSystemService extends Service {
   // Get serve file
   getServeFile = (uid, path = "") =>
     this.api(`serve/${uid}/${encodeURIComponent(path)}`);
+
+  // Get serve file info
+  getServeFileInfo = (uid, path = "") =>
+    this.api(`serve-info/${uid}/${encodeURIComponent(path)}`);
 
   // Path conversions
   convertPath = (path, type = "virtual") =>

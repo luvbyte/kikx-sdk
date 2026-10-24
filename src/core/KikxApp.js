@@ -113,6 +113,11 @@ export class KikxApp {
       callback(this.info);
     }
   }
+  
+  // Close app by itsef
+  close() {
+    return this.system.closeApp();
+  }
 }
 
 // ---------------------- Client App

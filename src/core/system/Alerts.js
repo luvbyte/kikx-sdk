@@ -121,6 +121,64 @@ export default class Alerts {
     return alert;
   }
 
+  async createProgressAlert(label, callback) {
+    const a = alerts.createAlert();
+    a.setSticky().setIsCode().setLabel(label);
+
+    try {
+      await a.show(`
+        <div style="
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          padding: 4px;
+          gap: 2px;
+        ">
+          <div style="
+            font-size: 14px;
+            font-weight: 500;
+          ">
+            ${label}
+          </div>
+      
+          <div style="
+            width: 100%;
+            height: 5px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: #e5e7eb;
+          ">
+            <div style="
+              width: 35%;
+              height: 100%;
+              border-radius: inherit;
+              background: #60a5fa;
+              box-shadow: 0 0 8px rgba(96, 165, 250, 0.45);
+              animation: progress 1.1s ease-in-out infinite;
+            "></div>
+          </div>
+      
+          <style>
+            @keyframes progress {
+              0% {
+                transform: translateX(-150%);
+              }
+              50% {
+                transform: translateX(180%);
+              }
+              100% {
+                transform: translateX(300%);
+              }
+            }
+          </style>
+        </div>
+      `);
+      await callback();
+    } finally {
+      alerts.clearAlert(a);
+    }
+  }
+
   // ----------------------------------------
   // Quick Alert
   // ----------------------------------------
