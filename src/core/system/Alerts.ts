@@ -1,7 +1,17 @@
 import { generateUUID } from "../../utils/uuid.js";
+import type { KikxApp } from "../KikxApp.js";
 
 class Alert {
-  constructor(_alert) {
+  _alert: (payload: unknown) => unknown;
+  uid: string;
+  onclick: (() => void) | null;
+  _sticky: boolean;
+  _silent: boolean;
+  _priority: "less" | "normal" | "high";
+  _label: string | null;
+  _extra: Record<string, unknown>;
+
+  constructor(_alert: (payload: unknown) => unknown) {
     this._alert = _alert;
     this.uid = generateUUID();
 
@@ -28,7 +38,7 @@ class Alert {
     return this;
   }
 
-  setPriority(priority = "normal") {
+  setPriority(priority: "less" | "normal" | "high" = "normal") {
     if (!["less", "normal", "high"].includes(priority)) {
       throw new Error(`Invalid priority option: ${priority}`);
     }
@@ -38,12 +48,12 @@ class Alert {
     return this;
   }
 
-  setLabel(label = null) {
+  setLabel(label: string | null = null) {
     this._label = label;
     return this;
   }
 
-  setExtra(key, value) {
+  setExtra(key: string, value: unknown) {
     this._extra[key] = value;
     return this;
   }
@@ -56,12 +66,12 @@ class Alert {
   // Actions
   // ----------------------------------------
 
-  onClick(callback) {
+  onClick(callback: () => void) {
     this.onclick = callback;
     return this;
   }
 
-  show(message, type = "info") {
+  show(message: string, type = "info") {
     return this._alert({
       uid: this.uid,
       type,
@@ -82,7 +92,11 @@ class Alert {
 }
 
 export default class Alerts {
-  constructor(app) {
+  app: KikxApp;
+  alerts: Map<string, Alert>;
+  destroyed: boolean;
+
+  constructor(app: KikxApp) {
     this.app = app;
 
     // All currently owned alerts
@@ -97,7 +111,7 @@ export default class Alerts {
   // Events
   // ----------------------------------------
 
-  _onAlertClick = ({ uid }) => {
+  _onAlertClick = ({ uid }: { uid: string }) => {
     const alert = this.alerts.get(uid);
 
     if (alert) {
@@ -121,9 +135,23 @@ export default class Alerts {
     return alert;
   }
 
-  async createProgressAlert(label, callback) {
-    const a = alerts.createAlert();
+  async createProgressAlert(
+    label: string,
+    callback: () => unknown | Promise<unknown>
+  ): Promise<void> {
+    const a = this.createAlert();
     a.setSticky().setIsCode().setLabel(label);
+    const safeLabel = label.replace(/[&<>"']/g, character => {
+      const entities: Record<string, string> = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      };
+
+      return entities[character];
+    });
 
     try {
       await a.show(`
@@ -138,7 +166,7 @@ export default class Alerts {
             font-size: 14px;
             font-weight: 500;
           ">
-            ${label}
+            ${safeLabel}
           </div>
       
           <div style="
@@ -175,7 +203,7 @@ export default class Alerts {
       `);
       await callback();
     } finally {
-      alerts.clearAlert(a);
+      this.clearAlert(a);
     }
   }
 
@@ -183,15 +211,21 @@ export default class Alerts {
   // Quick Alert
   // ----------------------------------------
 
-  alert(message, { type = "info", priority = "normal" } = {}) {
-    return this.system.alert(message, { type, priority });
+  alert(
+    message: string,
+    {
+      type = "info",
+      priority = "normal"
+    }: { type?: string; priority?: string } = {}
+  ) {
+    return this.app.system.alert(message, { type, priority });
   }
 
   // ----------------------------------------
   // Remove one
   // ----------------------------------------
 
-  clearAlert(alert) {
+  clearAlert(alert: Alert | null | undefined) {
     if (!alert) {
       return;
     }

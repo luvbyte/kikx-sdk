@@ -1,13 +1,14 @@
 import Service from "./Service.js";
+import type { KikxApp } from "../KikxApp.js";
 
 export default class FileSystemService extends Service {
-  constructor(app) {
+  constructor(app: KikxApp) {
     super(app, "fs");
   }
 
   // List files
   listFiles = (
-    directory,
+    directory: string,
     {
       offset = 0,
       limit = -1,
@@ -17,6 +18,15 @@ export default class FileSystemService extends Service {
       extensions = "",
       search = "",
       thumbnails = false
+    }: {
+      offset?: number;
+      limit?: number;
+      sort?: string;
+      asc?: boolean;
+      filter?: string;
+      extensions?: string;
+      search?: string;
+      thumbnails?: boolean;
     } = {}
   ) =>
     this.api("list", {
@@ -35,7 +45,7 @@ export default class FileSystemService extends Service {
 
   // Quick List Files
   quickListFiles = (
-    directory,
+    directory: string,
     {
       sort = "name",
       asc = true,
@@ -43,6 +53,13 @@ export default class FileSystemService extends Service {
       extensions = "",
       search = "",
       hidden = true
+    }: {
+      sort?: string;
+      asc?: boolean;
+      filter?: string;
+      extensions?: string;
+      search?: string;
+      hidden?: boolean;
     } = {}
   ) =>
     this.api("list-simple", {
@@ -59,13 +76,19 @@ export default class FileSystemService extends Service {
 
   // Search files recursively
   searchFiles = (
-    directory,
+    directory: string,
     {
       search = "",
       filter = "all",
       extensions = "",
       hidden = true,
       maxResults = 500
+    }: {
+      search?: string;
+      filter?: string;
+      extensions?: string;
+      hidden?: boolean;
+      maxResults?: number;
     } = {}
   ) =>
     this.api("search", {
@@ -80,32 +103,35 @@ export default class FileSystemService extends Service {
     });
 
   // Check if path exists
-  exists = path =>
+  exists = (path: string) =>
     this.api("exists", {
       params: { path }
     });
 
   // Get file information
-  stat = path =>
+  stat = (path: string) =>
     this.api("stat", {
       params: { path }
     });
 
   // Create file or update timestamp
-  touch = path =>
+  touch = (path: string) =>
     this.api("touch", {
       method: "POST",
       params: { path }
     });
 
   // Get disk usage
-  diskUsage = path =>
+  diskUsage = (path: string) =>
     this.api("disk-usage", {
       params: { path }
     });
 
   // Get directory tree
-  tree = (directory, { depth = 2, hidden = true } = {}) =>
+  tree = (
+    directory: string,
+    { depth = 2, hidden = true }: { depth?: number; hidden?: boolean } = {}
+  ) =>
     this.api("tree", {
       params: {
         directory,
@@ -115,13 +141,13 @@ export default class FileSystemService extends Service {
     });
 
   // Get MIME type
-  mime = path =>
+  mime = (path: string) =>
     this.api("mime", {
       params: { path }
     });
 
   // Calculate file hash
-  hash = (path, algorithm = "sha256") =>
+  hash = (path: string, algorithm = "sha256") =>
     this.api("hash", {
       params: {
         path,
@@ -130,7 +156,7 @@ export default class FileSystemService extends Service {
     });
 
   // Calculate checksum
-  checksum = (path, algorithm = "sha256") =>
+  checksum = (path: string, algorithm = "sha256") =>
     this.api("checksum", {
       params: {
         path,
@@ -139,7 +165,7 @@ export default class FileSystemService extends Service {
     });
 
   // Change permissions
-  chmod = (path, mode) =>
+  chmod = (path: string, mode: string | number) =>
     this.api("chmod", {
       method: "POST",
       params: {
@@ -149,21 +175,21 @@ export default class FileSystemService extends Service {
     });
 
   // Batch filesystem operations
-  batch = operations =>
+  batch = (operations: unknown[]) =>
     this.api("batch", {
       method: "POST",
       body: operations
     });
 
   // Move file/directory to trash
-  trash = path =>
+  trash = (path: string) =>
     this.api("trash", {
       method: "POST",
       params: { path }
     });
 
   // Restore from trash
-  restore = (trashDirectory, trashId) =>
+  restore = (trashDirectory: string, trashId: string) =>
     this.api("restore", {
       method: "POST",
       params: {
@@ -173,7 +199,7 @@ export default class FileSystemService extends Service {
     });
 
   // Compress file/directory
-  compress = (source, destination, format = "zip") =>
+  compress = (source: string, destination: string, format = "zip") =>
     this.api("compress", {
       method: "POST",
       params: {
@@ -184,7 +210,7 @@ export default class FileSystemService extends Service {
     });
 
   // Extract archive
-  extract = (archive, destination) =>
+  extract = (archive: string, destination: string) =>
     this.api("extract", {
       method: "POST",
       params: {
@@ -195,13 +221,19 @@ export default class FileSystemService extends Service {
 
   // Watch directory for changes
   watch = async (
-    directory,
+    directory: string,
     {
       interval = 1,
       pathType = "virtual",
       onChange = null,
       onError = null,
       signal = null
+    }: {
+      interval?: number;
+      pathType?: string;
+      onChange?: ((data: unknown) => void) | null;
+      onError?: ((error: unknown) => void) | null;
+      signal?: AbortSignal | null;
     } = {}
   ) => {
     const url = this.app.getUrl(`${this.baseURL}/watch`);
@@ -215,7 +247,7 @@ export default class FileSystemService extends Service {
     const response = await fetch(`${url}?${params.toString()}`, {
       method: "GET",
       headers: {
-        "kikx-app-id": this.app.getAppID()
+        "kikx-app-id": String(this.app.getAppID() ?? "")
       },
       signal
     });
@@ -243,7 +275,7 @@ export default class FileSystemService extends Service {
 
     let buffer = "";
 
-    const processEvent = event => {
+    const processEvent = (event: string) => {
       const lines = event.split("\n");
 
       let eventType = "message";
@@ -308,19 +340,23 @@ export default class FileSystemService extends Service {
   };
 
   // Get thumbnail
-  thumbnail = filename =>
+  thumbnail = (filename: string) =>
     this.api("thumbnail", {
       params: { filename }
     });
 
   // Read file
-  readFile = filename =>
+  readFile = (filename: string) =>
     this.api("read", {
       params: { filename }
     });
 
   // Write file
-  writeFile = (filename, content, { mode = "write", ensureDir = false } = {}) =>
+  writeFile = (
+    filename: string,
+    content: string,
+    { mode = "write", ensureDir = false }: { mode?: string; ensureDir?: boolean } = {}
+  ) =>
     this.api("write", {
       method: "POST",
       body: {
@@ -332,18 +368,18 @@ export default class FileSystemService extends Service {
     });
 
   // Append to file
-  appendFile = (filename, content) =>
+  appendFile = (filename: string, content: string) =>
     this.writeFile(filename, content, { mode: "append" });
 
   // Delete file
-  deleteFile = filename =>
+  deleteFile = (filename: string) =>
     this.api("delete", {
       method: "DELETE",
       params: { filename }
     });
 
   // Upload file
-  uploadFile = (file, dest) => {
+  uploadFile = (file: File, dest: string) => {
     const formData = new FormData();
     formData.append("files", file);
 
@@ -355,13 +391,13 @@ export default class FileSystemService extends Service {
   };
 
   // Download file
-  downloadFile = path =>
+  downloadFile = (path: string) =>
     this.api("download", {
       params: { path }
     });
 
   // Upload files
-  uploadFiles = (files, dest) => {
+  uploadFiles = (files: File[], dest: string) => {
     const formData = new FormData();
 
     files.forEach(file => formData.append("files", file));
@@ -374,83 +410,87 @@ export default class FileSystemService extends Service {
   };
 
   // Create File
-  createFile = filename =>
+  createFile = (filename: string) =>
     this.api("create_file", {
       method: "POST",
       body: { filename }
     });
 
   // Create directory
-  createDirectory = dirname =>
+  createDirectory = (dirname: string) =>
     this.api("create_directory", {
       method: "POST",
       body: { dirname }
     });
 
   // Delete directory
-  deleteDirectory = dirname =>
+  deleteDirectory = (dirname: string) =>
     this.api("delete_directory", {
       method: "DELETE",
       params: { dirname }
     });
 
   // Delete list
-  deleteList = paths =>
+  deleteList = (paths: string[]) =>
     this.api("delete-list", {
       method: "POST",
       body: { paths }
     });
 
   // Rename
-  rename = (source, new_name) =>
+  rename = (source: string, new_name: string) =>
     this.api("rename", {
       method: "POST",
       body: { source, new_name }
     });
 
   // Info
-  info = path =>
+  info = (path: string) =>
     this.api("info", {
       params: { path }
     });
 
   // Copy
-  copy = (source, dest) =>
+  copy = (source: string, dest: string) =>
     this.api("copy", {
       method: "POST",
       body: { source, dest }
     });
 
   // Copy File
-  copyFile = (source, dest, { override = false } = {}) =>
+  copyFile = (
+    source: string,
+    dest: string,
+    { override = false }: { override?: boolean } = {}
+  ) =>
     this.request("copy-file", {
       method: "POST",
       body: { source, dest, override }
     });
 
   // Move
-  move = (source, dest) =>
+  move = (source: string, dest: string) =>
     this.api("move", {
       method: "POST",
       body: { source, dest }
     });
 
   // Expose path for serve files
-  expose = (path, expires = null) =>
+  expose = (path: string, expires: number | null = null) =>
     this.api("expose", {
       method: "POST",
       body: { path, expires }
     });
 
   // Expose multiple paths for serving files
-  batchExpose = (paths, expires = null) =>
+  batchExpose = (paths: string[], expires: number | null = null) =>
     this.api("expose-batch", {
       method: "POST",
       body: { paths, expires }
     });
 
   // Remove Expose
-  removeExpose = uid =>
+  removeExpose = (uid: string) =>
     this.api("expose", {
       method: "DELETE",
       params: { uid }
@@ -460,25 +500,25 @@ export default class FileSystemService extends Service {
   clearExpose = () => this.api("clear-expose");
 
   // Get file url
-  getServeUrl = (uid, path = "", absolute = false) => {
+  getServeUrl = (uid: string, path = "", absolute = false) => {
     const url = `${this.baseURL}/serve/${uid}/${encodeURIComponent(path)}`;
 
     return absolute ? this.app.getUrl(url) : url;
   };
 
   // Get full file url
-  getServeAbsUrl = (uid, path = "") => this.getServeUrl(uid, path, true);
+  getServeAbsUrl = (uid: string, path = "") => this.getServeUrl(uid, path, true);
 
   // Get serve file
-  getServeFile = (uid, path = "") =>
+  getServeFile = (uid: string, path = "") =>
     this.api(`serve/${uid}/${encodeURIComponent(path)}`);
 
   // Get serve file info
-  getServeFileInfo = (uid, path = "") =>
+  getServeFileInfo = (uid: string, path = "") =>
     this.api(`serve-info/${uid}/${encodeURIComponent(path)}`);
 
   // Path conversions
-  convertPath = (path, type = "virtual") =>
+  convertPath = (path: string, type = "virtual") =>
     this.api("convert-path", {
       params: {
         path,
@@ -487,8 +527,8 @@ export default class FileSystemService extends Service {
     });
 
   // virtual -> absolute
-  toAbsolutePath = path => this.convertPath(path, "absolute");
+  toAbsolutePath = (path: string) => this.convertPath(path, "absolute");
 
   // absolute -> virtual
-  toVirtualPath = path => this.convertPath(path, "virtual");
+  toVirtualPath = (path: string) => this.convertPath(path, "virtual");
 }

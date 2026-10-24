@@ -1,7 +1,11 @@
 import Service from "./Service.js";
 
 class Micro {
-  constructor(name, manager) {
+  name: string;
+  manager: MicroService | null;
+  destroyed: boolean;
+
+  constructor(name: string, manager: MicroService) {
     this.name = name;
     this.manager = manager;
     this.destroyed = false;
@@ -16,7 +20,7 @@ class Micro {
       throw new Error(`Micro "${this.name}" has already been destroyed`);
     }
 
-    return this.manager.start(this.name);
+    return this.manager!.start(this.name);
   }
 
   // -------------------------
@@ -28,19 +32,19 @@ class Micro {
       throw new Error(`Micro "${this.name}" has already been destroyed`);
     }
 
-    return this.manager.output(this.name);
+    return this.manager!.output(this.name);
   }
 
   // -------------------------
   // Send input
   // -------------------------
 
-  send(data) {
+  send(data: unknown) {
     if (this.destroyed) {
       throw new Error(`Micro "${this.name}" has already been destroyed`);
     }
 
-    return this.manager.send(this.name, data);
+    return this.manager!.send(this.name, data);
   }
 
   // -------------------------
@@ -51,7 +55,7 @@ class Micro {
     if (this.destroyed) return;
 
     try {
-      return await this.manager.stop(this.name);
+      return await this.manager!.stop(this.name);
     } finally {
       this.destroyed = true;
     }
@@ -79,7 +83,9 @@ class Micro {
 }
 
 export default class MicroService extends Service {
-  constructor(app) {
+  instances: Map<string, Micro>;
+
+  constructor(app: ConstructorParameters<typeof Service>[0]) {
     super(app, "micro");
 
     // name -> Micro instance
@@ -96,7 +102,7 @@ export default class MicroService extends Service {
   // Start
   // -------------------------
 
-  start = async name => {
+  start = async (name: string) => {
     const existing = this.instances.get(name);
 
     if (existing && !existing.destroyed) {
@@ -125,7 +131,7 @@ export default class MicroService extends Service {
   // Output
   // -------------------------
 
-  output = name =>
+  output = (name: string) =>
     this.api("output", {
       params: {
         name
@@ -136,7 +142,7 @@ export default class MicroService extends Service {
   // Send input
   // -------------------------
 
-  send = (name, data) =>
+  send = (name: string, data: unknown) =>
     this.api("send", {
       method: "POST",
       body: {
@@ -149,7 +155,7 @@ export default class MicroService extends Service {
   // Stop one service
   // -------------------------
 
-  stop = async name => {
+  stop = async (name: string) => {
     try {
       return await this.api("stop", {
         params: {

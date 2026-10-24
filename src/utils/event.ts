@@ -1,7 +1,7 @@
+import type { EventCallback } from "../types.js";
+
 export default class EventEmitter {
-  constructor() {
-    this.eventHandlers = new Map();
-  }
+  private eventHandlers = new Map<string, Set<EventCallback<any>>>();
 
   /**
    * Register an event handler.
@@ -9,7 +9,7 @@ export default class EventEmitter {
    * @param {Function} callback
    * @returns {Function} Unsubscribe function
    */
-  on(event, callback) {
+  on(event: string, callback: EventCallback<any>): () => void {
     if (typeof callback !== "function") {
       throw new TypeError("callback must be a function");
     }
@@ -18,7 +18,7 @@ export default class EventEmitter {
       this.eventHandlers.set(event, new Set());
     }
 
-    this.eventHandlers.get(event).add(callback);
+    this.eventHandlers.get(event)!.add(callback);
 
     return () => this.off(event, callback);
   }
@@ -29,8 +29,8 @@ export default class EventEmitter {
    * @param {Function} callback
    * @returns {Function} Unsubscribe function
    */
-  once(event, callback) {
-    const wrapper = async data => {
+  once(event: string, callback: EventCallback<any>): () => void {
+    const wrapper = async (data: any) => {
       this.off(event, wrapper);
       return callback(data);
     };
@@ -43,7 +43,7 @@ export default class EventEmitter {
    * @param {string} event
    * @param {Function} callback
    */
-  off(event, callback) {
+  off(event: string, callback: EventCallback<any>): void {
     const callbacks = this.eventHandlers.get(event);
 
     if (!callbacks) {
@@ -63,7 +63,11 @@ export default class EventEmitter {
    * @param {*} payload
    * @param {boolean} ignoreErrors
    */
-  async emit(event, payload = null, ignoreErrors = true) {
+  async emit(
+    event: string,
+    payload: unknown = null,
+    ignoreErrors = true
+  ): Promise<void> {
     const callbacks = this.eventHandlers.get(event);
 
     if (!callbacks) {
@@ -87,7 +91,7 @@ export default class EventEmitter {
    * Remove all handlers for an event.
    * If no event is supplied, remove everything.
    */
-  removeAll(event) {
+  removeAll(event?: string): void {
     if (event !== undefined) {
       this.eventHandlers.delete(event);
     } else {
@@ -98,14 +102,14 @@ export default class EventEmitter {
   /**
    * Check whether an event has handlers.
    */
-  has(event) {
+  has(event: string): boolean {
     return this.eventHandlers.has(event);
   }
 
   /**
    * Get number of handlers for an event.
    */
-  listenerCount(event) {
+  listenerCount(event: string): number {
     return this.eventHandlers.get(event)?.size ?? 0;
   }
 }

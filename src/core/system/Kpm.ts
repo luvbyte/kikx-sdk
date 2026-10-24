@@ -1,5 +1,15 @@
+import type { KikxApp } from "../KikxApp.js";
+
 class AppInstaller {
-  constructor(app, onInstalled = null) {
+  app: KikxApp;
+  appData: (Record<string, unknown> & { temp_id?: string }) | null;
+  isGithub: boolean;
+  onInstalled: ((installer: AppInstaller) => void) | null;
+
+  constructor(
+    app: KikxApp,
+    onInstalled: ((installer: AppInstaller) => void) | null = null
+  ) {
     this.app = app;
     this.onInstalled = onInstalled;
 
@@ -13,7 +23,7 @@ class AppInstaller {
 
   getTempID = () => this.appData?.temp_id;
 
-  getPreviewUrl = file =>
+  getPreviewUrl = (file: string) =>
     this.app.getUrl(
       `${this.app.system.baseURL}/kpm/preview/${this.getTempID()}/${encodeURIComponent(file)}`
     );
@@ -22,7 +32,7 @@ class AppInstaller {
   // Prepare local package
   // ----------------------------------------
 
-  prepare = async file => {
+  prepare = async (file: File) => {
     if (this.appData) {
       return this.appData;
     }
@@ -45,7 +55,8 @@ class AppInstaller {
     return data;
   };
 
-  storage = async path => {
+  // from storage path
+  storage = async (path: string) => {
     if (this.appData) {
       return this.appData;
     }
@@ -72,7 +83,7 @@ class AppInstaller {
   // Prepare Github package
   // ----------------------------------------
 
-  github = async (url, tag = null) => {
+  github = async (url: string, tag: string | null = null) => {
     if (this.appData) {
       return this.appData;
     }
@@ -122,16 +133,17 @@ class AppInstaller {
     }
 
     // Installation succeeded
-    if (this.onInstalled) {
-      this.onInstalled(this);
-    }
+    this.onInstalled?.(this);
 
     return data;
   };
 }
 
 export default class Kpm {
-  constructor(app) {
+  app: KikxApp;
+  _installers: Map<string, AppInstaller>;
+
+  constructor(app: KikxApp) {
     this.app = app;
 
     // Named/reusable installers
@@ -150,7 +162,7 @@ export default class Kpm {
   // Get installer
   // ----------------------------------------
 
-  getInstaller = name => {
+  getInstaller = (name?: string) => {
     if (!name) {
       return this.createInstaller();
     }
@@ -163,14 +175,14 @@ export default class Kpm {
       this._installers.set(name, installer);
     }
 
-    return this._installers.get(name);
+    return this._installers.get(name)!;
   };
 
   // ----------------------------------------
   // Remove installer
   // ----------------------------------------
 
-  removeInstaller = name => {
+  removeInstaller = (name?: string) => {
     if (!name) {
       return;
     }
@@ -204,7 +216,7 @@ export default class Kpm {
   // App info
   // ----------------------------------------
 
-  getAppInfo = name =>
+  getAppInfo = (name: string) =>
     this.app.system.request("kpm/app-info", {
       params: { name }
     });
@@ -213,7 +225,7 @@ export default class Kpm {
   // Uninstall app
   // ----------------------------------------
 
-  uninstallApp = async (name, keepData = false) => {
+  uninstallApp = async (name: string, keepData = false) => {
     const { data, error } = await this.app.system.request("kpm/uninstall", {
       params: {
         app_name: name,
@@ -228,4 +240,3 @@ export default class Kpm {
     return data;
   };
 }
-

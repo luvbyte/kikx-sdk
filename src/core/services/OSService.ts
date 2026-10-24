@@ -1,13 +1,20 @@
 import Service from "./Service.js";
+import type { KikxApp } from "../KikxApp.js";
 
 // Runs functions in os service in backend
 export default class OSService extends Service {
-  constructor(app) {
+  constructor(app: KikxApp) {
     super(app, "os");
   }
 
   // { data, error } result
-  func = (name, { args = [], options = {} } = {}) =>
+  func = (
+    name: string,
+    {
+      args = [],
+      options = {}
+    }: { args?: unknown[]; options?: Record<string, unknown> } = {}
+  ) =>
     this.request("run", {
       method: "POST",
       body: {
@@ -18,7 +25,13 @@ export default class OSService extends Service {
     });
 
   // Execute
-  run = (name, { args = [], options = {} } = {}) =>
+  run = (
+    name: string,
+    {
+      args = [],
+      options = {}
+    }: { args?: unknown[]; options?: Record<string, unknown> } = {}
+  ) =>
     this.fetch("run", {
       method: "POST",
       body: {
@@ -36,21 +49,21 @@ export default class OSService extends Service {
   username = () => this.run("username");
 
   // Get environment variable
-  getenv = (key, defaultValue = null) =>
+  getenv = (key: string, defaultValue: unknown = null) =>
     this.run("getenv", {
-      args: [key, defaultValue]
+      args: [key, defaultValue] as unknown[]
     });
 
   // Set environment variable
-  setenv = (key, value) =>
+  setenv = (key: string, value: unknown) =>
     this.run("setenv", {
-      args: [key, value]
+      args: [key, value] as unknown[]
     });
 
   // Unset environment variable
-  unsetenv = key =>
+  unsetenv = (key: string) =>
     this.run("unsetenv", {
-      args: [key]
+      args: [key] as unknown[]
     });
 
   // Get complete environment

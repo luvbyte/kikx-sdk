@@ -1,6 +1,11 @@
+import type { KikxConfigOptions } from "../types.js";
+
 class KikxConfig {
-  constructor(config = {}) {
-    // Extract custom configuration values.
+  customApiUrl: string | undefined;
+  customWsUrl: string | undefined;
+  customAppID: string | null;
+
+  constructor(config: KikxConfigOptions = {}) {
     const { apiUrl, wsUrl, appID } = config || {};
 
     // Store custom API and WebSocket URLs.
@@ -18,7 +23,7 @@ class KikxConfig {
   getAppID = () => this.customAppID;
 
   // Update custom API, WebSocket, and App ID configuration.
-  configureUrls(options = {}) {
+  configureUrls(options: KikxConfigOptions = {}) {
     const { apiUrl, wsUrl, appID } = options;
 
     // Only update values that are provided.

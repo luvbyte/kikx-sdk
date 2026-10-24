@@ -1,7 +1,25 @@
 import Service from "./Service.js";
 import { generateUUID } from "../../utils/uuid.js";
+import type { ApiResult, RequestOptions } from "../../types.js";
+
+interface TaskEvent {
+  status: string;
+  output: any;
+}
 
 class TaskHandler {
+  handlerID: string;
+  running: boolean;
+  destroyed: boolean;
+  _ondata_callbacks: Set<(payload: any) => void>;
+  events: Record<string, (payload: any) => void> | null;
+  _eventHandler: (payload: any) => void;
+  onstart!: ((output: any) => void) | null;
+  oninfo!: ((output: any) => void) | null;
+  onmessage!: ((output: any) => void) | null;
+  onerror!: ((output: any) => void) | null;
+  onended!: ((output: any) => void) | null;
+
   constructor() {
     this.handlerID = generateUUID();
 
@@ -37,13 +55,13 @@ class TaskHandler {
 
     // Internal event dispatcher
     this._eventHandler = payload => {
-      this.events[payload?.status]?.(payload);
+      this.events?.[payload?.status]?.(payload);
     };
 
     this._ondata_callbacks.add(this._eventHandler);
   }
 
-  onData(callback) {
+  onData(callback: (payload: any) => void) {
     if (this.destroyed) {
       throw new Error("Handler has been destroyed");
     }
@@ -59,11 +77,11 @@ class TaskHandler {
     };
   }
 
-  offData(callback) {
+  offData(callback: (payload: any) => void) {
     this._ondata_callbacks.delete(callback);
   }
 
-  emit(payload) {
+  emit(payload: any) {
     if (this.destroyed) {
       return;
     }
@@ -107,7 +125,23 @@ class TaskHandler {
 }
 
 class Task {
-  constructor(cmd, once, request) {
+  cmd: string;
+  request: (endpoint: string, options?: RequestOptions) => Promise<ApiResult>;
+  handler: TaskHandler | null;
+  taskID: string | null;
+  once: boolean;
+  running: boolean;
+  completed: boolean;
+  destroyed: boolean;
+  listeners: Set<(payload: any) => void>;
+  _internalListener: (payload: any) => void;
+  func!: null;
+
+  constructor(
+    cmd: string,
+    once: boolean,
+    request: (endpoint: string, options?: RequestOptions) => Promise<ApiResult>
+  ) {
     this.cmd = cmd;
     this.request = request;
     this.handler = new TaskHandler();
@@ -141,7 +175,7 @@ class Task {
   }
 
   get handlerID() {
-    return this.handler.handlerID;
+    return this.handler!.handlerID;
   }
 
   // ----------------------------------------
@@ -244,7 +278,7 @@ class Task {
   // Input
   // ----------------------------------------
 
-  send(inputText, force = false) {
+  send(inputText: string, force = false) {
     this._assertReady();
 
     if (!inputText && !force) {
@@ -298,7 +332,7 @@ class Task {
   // Events
   // ----------------------------------------
 
-  on(callback) {
+  on(callback: (payload: TaskEvent) => void) {
     this._assertNotDestroyed();
 
     if (typeof callback !== "function") {
@@ -308,7 +342,7 @@ class Task {
     return this._addHandlerListener(callback);
   }
 
-  off(callback) {
+  off(callback: (payload: TaskEvent) => void) {
     if (!callback) {
       return;
     }
@@ -340,7 +374,7 @@ class Task {
   // Listener management
   // ----------------------------------------
 
-  _addHandlerListener(callback) {
+  _addHandlerListener(callback: (payload: any) => void) {
     if (!this.handler) {
       return () => {};
     }
@@ -360,7 +394,7 @@ class Task {
     };
   }
 
-  _removeHandlerListener(callback) {
+  _removeHandlerListener(callback: (payload: any) => void) {
     this.listeners.delete(callback);
 
     if (typeof this.handler?.offData === "function") {
@@ -402,7 +436,9 @@ class Task {
 }
 
 export default class Tasker extends Service {
-  constructor(app) {
+  tasks: Map<string, Task>;
+
+  constructor(app: ConstructorParameters<typeof Service>[0]) {
     super(app, "tasker");
 
     // All currently running tasks
@@ -412,7 +448,7 @@ export default class Tasker extends Service {
     this.app.on("tasker-data", payload => {
       const { id, data } = payload;
 
-      this.tasks.get(id)?.handler.emit(data);
+      this.tasks.get(id)?.handler?.emit(data);
     });
 
     // Init tasker
@@ -430,7 +466,7 @@ export default class Tasker extends Service {
   }
 
   // Create Task
-  createTask(cmd, once = true) {
+  createTask(cmd: string, once = true) {
     const task = new Task(cmd, once, this.request);
 
     this.tasks.set(task.handlerID, task);
@@ -439,7 +475,7 @@ export default class Tasker extends Service {
   }
 
   // Remove Task
-  async removeTask(task) {
+  async removeTask(task: Task | null | undefined) {
     if (!task) {
       return;
     }
@@ -458,13 +494,17 @@ export default class Tasker extends Service {
   }
 
   // Run task and clean on ended
-  async doTask(cmd, callback, canSudo = true) {
+  async doTask(
+    cmd: string,
+    callback: ((event: TaskEvent) => void) | null = null,
+    canSudo = true
+  ) {
     const task = this.createTask(cmd);
 
     try {
       await task.init({ canSudo });
 
-      task.on(({ status, output }) => {
+      task.on(({ status, output }: TaskEvent) => {
         try {
           callback?.({
             status,
@@ -492,11 +532,15 @@ export default class Tasker extends Service {
   // Run task and get output
   // If callback passed runs with both, save and output live callbacks
   // Else only returns saved output in Array after complete
-  async runSaveTask(cmd, callback = null, delayCheck = 5000) {
+  async runSaveTask(
+    cmd: string,
+    callback: ((event: TaskEvent) => void) | null = null,
+    delayCheck = 5000
+  ) {
     const task = this.createTask(cmd);
 
     return new Promise(resolve => {
-      let timer = null;
+      let timer: ReturnType<typeof setTimeout> | null = null;
       let finished = false;
 
       const cleanup = async () => {
@@ -508,7 +552,7 @@ export default class Tasker extends Service {
         await this.removeTask(task);
       };
 
-      const fail = async error => {
+      const fail = async (error: unknown) => {
         if (finished) {
           return;
         }
@@ -594,7 +638,7 @@ export default class Tasker extends Service {
             outputMode: callback ? "*" : "save"
           });
 
-          task.on(async ({ status, output }) => {
+          task.on(async ({ status, output }: TaskEvent) => {
             if (finished) {
               return;
             }
@@ -638,7 +682,7 @@ export default class Tasker extends Service {
   }
 
   // Run long polling for output by delay and return if ennded
-  async runTaskPolling(cmd, delayCheck = 5000) {
+  async runTaskPolling(cmd: string, delayCheck = 5000) {
     const task = this.createTask(cmd);
 
     try {
@@ -677,7 +721,14 @@ export default class Tasker extends Service {
   }
 
   // Quick run and get { stdout, stderr, returncode }
-  quickRun(cmd, { canSudo = false, input = [], timeout = null } = {}) {
+  quickRun(
+    cmd: string,
+    {
+      canSudo = false,
+      input = [],
+      timeout = null
+    }: { canSudo?: boolean; input?: unknown[]; timeout?: number | null } = {}
+  ) {
     return this.request("quick", {
       method: "POST",
       body: {

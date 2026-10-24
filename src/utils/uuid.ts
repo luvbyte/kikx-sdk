@@ -1,4 +1,4 @@
-export function generateUUID() {
+export function generateUUID(): string {
   if (crypto.randomUUID) return crypto.randomUUID();
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
     const r =

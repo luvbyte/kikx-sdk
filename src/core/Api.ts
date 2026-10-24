@@ -1,13 +1,15 @@
+import type { ApiError, ApiResult, RequestOptions } from "../types.js";
+
 export async function request(
-  endpoint,
+  endpoint: string,
   {
     method = "GET",
-    body = undefined,
+    body,
     params = {},
     headers = {},
     ...options
-  } = {}
-) {
+  }: RequestOptions = {}
+): Promise<ApiResult> {
   try {
     const url = new URL(endpoint);
 
@@ -48,7 +50,7 @@ export async function request(
     }
 
     const contentType = response.headers.get("content-type") || "";
-    let result;
+    let result: any;
 
     if (contentType.includes("application/json")) {
       result = await response.json();
@@ -78,26 +80,28 @@ export async function request(
       contentType
     };
   } catch (error) {
+    const apiError: ApiError = {
+        status: null,
+        message: error instanceof Error ? error.message : String(error)
+      };
+
     return {
       data: null,
-      error: {
-        status: null,
-        message: error.message
-      }
+      error: apiError
     };
   }
 }
 
 export async function fetchData(
-  endpoint,
+  endpoint: string,
   {
     method = "GET",
-    body = undefined,
+    body,
     params = {},
     headers = {},
     ...options
-  } = {}
-) {
+  }: RequestOptions = {}
+): Promise<unknown> {
   const { data, error } = await request(endpoint, {
     method,
     body,

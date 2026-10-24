@@ -1,8 +1,9 @@
 import Service from "./services/Service.js";
 import { generateUUID } from "../utils/uuid.js";
+import type { KikxApp } from "./KikxApp.js";
 
 export default class SystemService extends Service {
-  constructor(app) {
+  constructor(app: KikxApp) {
     super(app, "system");
   }
 
@@ -27,7 +28,7 @@ export default class SystemService extends Service {
 
   sessionsInfo = () => this.request("info/sessions");
 
-  closeSession = sessionID =>
+  closeSession = (sessionID: string) =>
     this.request("info/session-close", {
       params: {
         session_id: sessionID
@@ -38,13 +39,19 @@ export default class SystemService extends Service {
   // Alerts
   // ----------------------------------------
 
-  _alert = payload =>
+  _alert = (payload: unknown) =>
     this.request("alert", {
       method: "POST",
       body: payload
     });
 
-  alert = (message, { type = "info", priority = "normal" } = {}) =>
+  alert = (
+    message: string,
+    {
+      type = "info",
+      priority = "normal"
+    }: { type?: string; priority?: string } = {}
+  ) =>
     this._alert({
       message,
       type,

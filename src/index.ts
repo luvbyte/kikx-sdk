@@ -13,4 +13,4 @@ export { default as TaskerService } from "./core/services/TaskerService.js";
 
 export { default as Kpm } from "./core/system/Kpm.js";
 export { default as Alerts } from "./core/system/Alerts.js";
-export { default as Invoker } from "./core/system/Invoker.js";
+export { File, default as Invoker } from "./core/system/Invoker.js";

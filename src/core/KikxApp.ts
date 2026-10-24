@@ -1,16 +1,25 @@
 import KikxConfig from "./Config.js";
 import SystemService from "./SystemService.js";
 import EventEmitter from "../utils/event.js";
+import type { AppInfo, EventCallback, KikxConfigOptions, KikxInfo } from "../types.js";
 
 // ---------------------- Singleton state
 
-let instance = null;
-let instanceType = null;
+let instance: KikxApp | KikxAppClient | null = null;
+let instanceType: "base" | "client" | null = null;
 
 // ---------------------- Base App
 
 export class KikxApp {
-  constructor(config = {}) {
+  config: KikxConfig;
+  system: SystemService;
+  info: AppInfo | null;
+  kikx: KikxInfo | null;
+  isVisisble: boolean;
+  _appEvents: EventEmitter;
+  _messageEvents: EventEmitter;
+
+  constructor(config: KikxConfigOptions = {}) {
     this.config = new KikxConfig(config);
     this.system = new SystemService(this);
 
@@ -42,50 +51,50 @@ export class KikxApp {
 
   // ---------------------- App
 
-  isSudo = () => this.info.options.sudo;
+  isSudo = () => this.info!.options.sudo;
 
   // Get appID
   getAppID = () => this.config.getAppID();
 
   // Get app api url
-  getUrl = end => this.config.getUrl(end);
+  getUrl = (end: string = "") => this.config.getUrl(end);
 
   // Get app ws url
   getWsUrl = () => this.config.getWsUrl();
 
   // ---------------------- Message Events
 
-  onMessage(event, callback) {
+  onMessage(event: string, callback: EventCallback<any>) {
     return this._messageEvents.on(event, callback);
   }
 
-  offMessage(event, callback) {
+  offMessage(event: string, callback: EventCallback<any>) {
     this._messageEvents.off(event, callback);
   }
 
-  onceMessage(event, callback) {
+  onceMessage(event: string, callback: EventCallback<any>) {
     return this._messageEvents.once(event, callback);
   }
 
-  onFocus(callback) {
+  onFocus(callback: EventCallback<any>) {
     return this.onMessage("app:focus", callback);
   }
 
-  onBlur(callback) {
+  onBlur(callback: EventCallback<any>) {
     return this.onMessage("app:blur", callback);
   }
 
   // ---------------------- App Events
 
-  on(event, callback) {
+  on(event: string, callback: EventCallback<any>) {
     return this._appEvents.on(event, callback);
   }
 
-  once(event, callback) {
+  once(event: string, callback: EventCallback<any>) {
     return this._appEvents.once(event, callback);
   }
 
-  off(event, callback) {
+  off(event: string, callback: EventCallback<any>) {
     this._appEvents.off(event, callback);
   }
 
@@ -100,13 +109,13 @@ export class KikxApp {
       );
     }
 
-    this.info = data.app;
-    this.kikx = data.kikx;
+    this.info = data!.app;
+    this.kikx = data!.kikx;
 
     await this._appEvents.emit("start", data, false);
   }
 
-  async run(callback = null) {
+  async run(callback: ((info: AppInfo | null) => void) | null = null) {
     await this._run();
 
     if (typeof callback === "function") {
@@ -123,8 +132,14 @@ export class KikxApp {
 // ---------------------- Client App
 
 export class KikxAppClient extends KikxApp {
-  constructor(config = {}) {
-    super(config);
+  ws: WebSocket | null;
+  reconnectAttempts: number;
+  reconnectDelay: number;
+  _reconnectTimer: ReturnType<typeof setTimeout> | null;
+  maxReconnectAttempts: number;
+
+  constructor(config: KikxConfigOptions | null = {}) {
+    super(config ?? {});
 
     this.ws = null;
 
@@ -146,7 +161,7 @@ export class KikxAppClient extends KikxApp {
       }
 
       try {
-        this.ws.send(JSON.stringify({ event: "app-ping", payload: {} }));
+        this.ws?.send(JSON.stringify({ event: "app-ping", payload: {} }));
       } catch (_) {}
     });
 
@@ -162,14 +177,14 @@ export class KikxAppClient extends KikxApp {
     this.reconnectAttempts = 0;
 
     if (this.hasSocketState(WebSocket.CONNECTING, WebSocket.OPEN)) {
-      this.ws.close();
+      this.ws?.close();
       return;
     }
 
     this._connect();
   }
 
-  hasSocketState(...states) {
+  hasSocketState(...states: number[]) {
     return !!this.ws && states.includes(this.ws.readyState);
   }
 
@@ -216,7 +231,7 @@ export class KikxAppClient extends KikxApp {
       this._appEvents.emit("ws:onerror", e);
 
       if (this.hasSocketState(WebSocket.CONNECTING, WebSocket.OPEN)) {
-        this.ws.close();
+        this.ws?.close();
       }
     };
   }
@@ -248,17 +263,17 @@ export class KikxAppClient extends KikxApp {
   }
 
   // Send JSON data to app using ws
-  send(data) {
+  send(data: unknown) {
     if (this.hasSocketState(WebSocket.OPEN)) {
-      this.ws.send(JSON.stringify(data));
+      this.ws?.send(JSON.stringify(data));
     }
   }
 
-  sendEvent(event, payload = null) {
+  sendEvent(event: string, payload: unknown = null) {
     this.send({ event, payload });
   }
 
-  async run(callback = null) {
+  async run(callback: ((info: AppInfo | null) => void) | null = null) {
     await this._run();
 
     if (typeof callback === "function") {
@@ -277,7 +292,9 @@ export class KikxAppClient extends KikxApp {
 
 // ---------------------- Create Base App
 
-export function createKikxApp(config = null) {
+export function createKikxApp(
+  config: KikxConfigOptions | null = null
+): KikxApp {
   if (instance) {
     if (instanceType !== "base") {
       throw new Error(
@@ -285,18 +302,20 @@ export function createKikxApp(config = null) {
       );
     }
 
-    return instance;
+    return instance as KikxApp;
   }
 
   instanceType = "base";
-  instance = new KikxApp(config);
+  instance = new KikxApp(config ?? {});
 
   return instance;
 }
 
 // ---------------------- Create Client App
 
-export function createKikxClient(config = null) {
+export function createKikxClient(
+  config: KikxConfigOptions | null = null
+): KikxAppClient {
   if (instance) {
     if (instanceType !== "client") {
       throw new Error(
@@ -304,18 +323,18 @@ export function createKikxClient(config = null) {
       );
     }
 
-    return instance;
+    return instance as KikxAppClient;
   }
 
   instanceType = "client";
-  instance = new KikxAppClient(config);
+  instance = new KikxAppClient(config ?? {});
 
-  return instance;
+  return instance as KikxAppClient;
 }
 
 // ---------------------- Get Existing Instance
 
-export function getKikxApp() {
+export function getKikxApp(): KikxApp | KikxAppClient {
   if (!instance) {
     throw new Error(
       "KikxApp not created. Call createKikxApp() or createKikxClient() first."

@@ -1,8 +1,8 @@
 import Service from "./Service.js";
+import type { KikxApp } from "../KikxApp.js";
 
 export default class KVService extends Service {
-  constructor(app) {
-    // Initialize the base Service with the "kv" service name.
+  constructor(app: KikxApp) {
     super(app, "kv");
 
     // KV methods use the parsed API response directly.
@@ -33,7 +33,7 @@ export default class KVService extends Service {
   //
   // Example:
   // await kv.get("name");
-  get = key =>
+  get = (key: string) =>
     this.api("get", {
       params: {
         key
@@ -44,7 +44,7 @@ export default class KVService extends Service {
   //
   // Example:
   // await kv.set("name", "John");
-  set = (key, value) =>
+  set = (key: string, value: unknown) =>
     this.api("set", {
       method: "POST",
       body: {
@@ -57,7 +57,7 @@ export default class KVService extends Service {
   //
   // Example:
   // const exists = await kv.exists("name");
-  exists = key =>
+  exists = (key: string) =>
     this.api("exists", {
       params: {
         key
@@ -69,7 +69,7 @@ export default class KVService extends Service {
   //
   // Example:
   // await kv.getOrSet("count", 0);
-  getOrSet = (key, value) =>
+  getOrSet = (key: string, value: unknown) =>
     this.api("get-set", {
       method: "POST",
       body: {
@@ -82,7 +82,7 @@ export default class KVService extends Service {
   //
   // Example:
   // const oldValue = await kv.pop("name");
-  pop = key =>
+  pop = (key: string) =>
     this.api("pop", {
       method: "DELETE",
       params: {
